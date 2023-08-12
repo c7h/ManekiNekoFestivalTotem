@@ -3,6 +3,7 @@
 #include "DFRobotDFPlayerMini.h"
 #include <SoftwareSerial.h>
 #include <FadingLight.h>
+#include <ezButton.h>
 
 // definitions
 #define ENABLE_EASE_ELASTIC
@@ -24,6 +25,7 @@ ServoEasing Arm;
 SoftwareSerial softSerial(PIN_DFPLAYER_RX, PIN_DFPLAYER_TX);
 DFRobotDFPlayerMini dfPlayer;
 Fadinglight laserArm(PIN_LASER_ARM);
+ezButton laserArmTrigger(PIN_BUTTON_LASER_TRIGGER);
 
 struct ServoPattern
 {
@@ -31,7 +33,10 @@ struct ServoPattern
   int next; // pointer of next pattern
 };
 
+uint16_t laserPulseDuration = 100;  // duration of laser on time during pulse
 uint16_t tSpeed; // servo speed read from adc
+uint16_t firstBeat, lastBeat; // ms timestamps for beat measurement;
+uint16_t tBeat;  // music speed im ms for laser patterns
 
 ServoPattern FullWaive = {20, 120, 0};
 ServoPattern TinyWaive = {45, 55, 0};
@@ -80,7 +85,8 @@ void setup()
   playRandomTrack(10); // folder 10 contains greetings!
 
   // setup lasers 8-)
-  pinMode(PIN_LASER_ARM, OUTPUT);
+  laserArmTrigger.setDebounceTime(50);
+  laserArmTrigger.setCountMode(COUNT_FALLING);
   laserArm.flash(10);
 
   // setup controlls
@@ -96,6 +102,9 @@ void loop()
   tSpeed = analogRead(PIN_SERVO_SPEED);
   tSpeed = map(tSpeed, 0, 1023, 5, 150);
   setSpeedForAllServos(tSpeed);
+
+  // read buttons with ezButton
+  laserArmTrigger.loop();
 
   // update lasers
   laserArm.update();
@@ -115,9 +124,9 @@ void loop()
     playRandomTrack((int)random(0, 5));
   }
 
-  if (digitalRead(PIN_BUTTON_LASER_TRIGGER) == HIGH){
+  if (laserArmTrigger.isPressed()){
     // laser button was pressed
-    laserArm.blink();
+    pulseLaserArm();
   } else {
     laserArm.off();
   }
@@ -149,4 +158,40 @@ void playRandomTrack(int folder)
   Serial.println(folder);
 #endif
   dfPlayer.playFolder(folder, (int)random(1, trackId));
+}
+
+
+/*
+calculate speed setting by calling this function 4 times in a row.
+Average time between button presses will measure blink interval.
+After the 4th press is detected, start the blinking until button pressed
+for a 5th time, which turns off the blinking. repeat.
+*/
+void pulseLaserArm() {
+  unsigned long count = laserArmTrigger.getCount();
+  if (count == 1) {
+    firstBeat = millis();
+  } else if (1 <= count <=  3) {
+    // measure time
+    lastBeat += millis() - firstBeat;
+    firstBeat = millis();
+  } else if (count == 4) {
+    // average over measurements
+    tBeat = lastBeat / 4;
+    // set blink mode;
+    laserArm.setSpeed(
+      laserPulseDuration,
+      tBeat - laserPulseDuration,
+      tBeat,
+      tBeat
+    );
+    laserArm.blink();
+  } else if (count >= 5) {
+    // reset counter;
+    lastBeat = 0;
+    firstBeat = 0;
+    laserArmTrigger.resetCount();
+    laserArm.off();
+  }
+  
 }
