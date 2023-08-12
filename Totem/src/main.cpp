@@ -11,6 +11,8 @@
 #define PIN_SERVO_ARM 12
 #define PIN_SERVO_SPEED A0
 #define PIN_BUTTON_WAIVE 3
+#define PIN_BUTTON_TALK 2
+#define PIN_DFPLAYER_BUSY 6
 #define PIN_DFPLAYER_RX 4
 #define PIN_DFPLAYER_TX 5
 
@@ -51,6 +53,7 @@ void setup()
   Arm.setEasingType(EASE_ELASTIC_OUT);
 
   // setup MP3 Player
+  pinMode(PIN_DFPLAYER_BUSY, INPUT);
   softSerial.begin(9600);
   if (!dfPlayer.begin(softSerial, /*isACK = */ true, /*doReset = */ true))
   {
@@ -70,11 +73,12 @@ void setup()
 #else
   dfPlayer.volume(#DFPLAYER_VOLUME)
 #endif
-  playRandomTrack(10);
+  playRandomTrack(10);  // folder 10 contains greetings!
 
   // setup controlls
   pinMode(PIN_BUTTON_WAIVE, INPUT_PULLUP); // connect one end to GND and the other to PIN_BUTTON_WAIVE
   pinMode(PIN_SERVO_SPEED, INPUT);
+  pinMode(PIN_BUTTON_TALK, INPUT);
 }
 
 void loop()
@@ -91,6 +95,11 @@ void loop()
     {
       waiveArm(&FullWaive);
     }
+  }
+
+  if (digitalRead(PIN_BUTTON_TALK) == HIGH & !digitalRead(PIN_DFPLAYER_BUSY)) {
+    // not talking yet... start talking
+    playRandomTrack((int) random(0, 5));
   }
 }
 
@@ -112,5 +121,5 @@ Cat has multiple folders with different "moods". The folder selects the mood.
 */
 void playRandomTrack(int folder)
 {
-  dfPlayer.playFolder(folder, random(1, dfPlayer.readFileCountsInFolder(folder)));
+  dfPlayer.playFolder(folder, (int) random(1, dfPlayer.readFileCountsInFolder(folder)));
 }
