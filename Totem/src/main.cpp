@@ -73,7 +73,7 @@ void setup()
 #else
   dfPlayer.volume(#DFPLAYER_VOLUME)
 #endif
-  playRandomTrack(10);  // folder 10 contains greetings!
+  playRandomTrack(10); // folder 10 contains greetings!
 
   // setup controlls
   pinMode(PIN_BUTTON_WAIVE, INPUT_PULLUP); // connect one end to GND and the other to PIN_BUTTON_WAIVE
@@ -97,16 +97,17 @@ void loop()
     }
   }
 
-  if (digitalRead(PIN_BUTTON_TALK) == HIGH & !digitalRead(PIN_DFPLAYER_BUSY)) {
+  if ((digitalRead(PIN_BUTTON_TALK) == HIGH) & (!digitalRead(PIN_DFPLAYER_BUSY)))
+  {
     // not talking yet... start talking
-    playRandomTrack((int) random(0, 5));
+    playRandomTrack((int)random(0, 5));
   }
 }
 
 // custom functions
 
 /*
-Move the arm to the next posision of the pattern.
+Move the arm to the next position of the pattern.
 */
 void waiveArm(ServoPattern *pattern)
 {
@@ -121,5 +122,12 @@ Cat has multiple folders with different "moods". The folder selects the mood.
 */
 void playRandomTrack(int folder)
 {
-  dfPlayer.playFolder(folder, (int) random(1, dfPlayer.readFileCountsInFolder(folder)));
+  int trackId = dfPlayer.readFileCountsInFolder(folder);
+#ifdef DEBUG
+  Serial.print("Play track ");
+  Serial.print(trackId);
+  Serial.print(" from folder ");
+  Serial.println(folder);
+#endif
+  dfPlayer.playFolder(folder, (int)random(1, trackId));
 }
