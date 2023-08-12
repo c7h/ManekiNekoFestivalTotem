@@ -2,6 +2,7 @@
 #include "ServoEasing.hpp"
 #include "DFRobotDFPlayerMini.h"
 #include <SoftwareSerial.h>
+#include <FadingLight.h>
 
 // definitions
 #define ENABLE_EASE_ELASTIC
@@ -12,14 +13,17 @@
 #define PIN_SERVO_SPEED A0
 #define PIN_BUTTON_WAIVE 3
 #define PIN_BUTTON_TALK 2
+#define PIN_BUTTON_LASER_TRIGGER 1
 #define PIN_DFPLAYER_BUSY 6
 #define PIN_DFPLAYER_RX 4
 #define PIN_DFPLAYER_TX 5
+#define PIN_LASER_ARM 10
 
 // declarations
 ServoEasing Arm;
 SoftwareSerial softSerial(PIN_DFPLAYER_RX, PIN_DFPLAYER_TX);
 DFRobotDFPlayerMini dfPlayer;
+Fadinglight laserArm(PIN_LASER_ARM);
 
 struct ServoPattern
 {
@@ -75,10 +79,15 @@ void setup()
 #endif
   playRandomTrack(10); // folder 10 contains greetings!
 
+  // setup lasers 8-)
+  pinMode(PIN_LASER_ARM, OUTPUT);
+  laserArm.flash(10);
+
   // setup controlls
   pinMode(PIN_BUTTON_WAIVE, INPUT_PULLUP); // connect one end to GND and the other to PIN_BUTTON_WAIVE
   pinMode(PIN_SERVO_SPEED, INPUT);
   pinMode(PIN_BUTTON_TALK, INPUT);
+  pinMode(PIN_BUTTON_LASER_TRIGGER, INPUT);
 }
 
 void loop()
@@ -87,6 +96,9 @@ void loop()
   tSpeed = analogRead(PIN_SERVO_SPEED);
   tSpeed = map(tSpeed, 0, 1023, 5, 150);
   setSpeedForAllServos(tSpeed);
+
+  // update lasers
+  laserArm.update();
 
   if (!Arm.isMoving())
   {
@@ -101,6 +113,13 @@ void loop()
   {
     // not talking yet... start talking
     playRandomTrack((int)random(0, 5));
+  }
+
+  if (digitalRead(PIN_BUTTON_LASER_TRIGGER) == HIGH){
+    // laser button was pressed
+    laserArm.blink();
+  } else {
+    laserArm.off();
   }
 }
 
