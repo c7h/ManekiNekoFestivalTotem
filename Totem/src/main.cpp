@@ -223,7 +223,7 @@ void pulseLaserArm()
   else if (count == 4)
   {
     // average over measurements
-    tBeat = lastBeat / 4;
+    tBeat = lastBeat / 2;
     laserArm.Blink(laserPulseDuration, tBeat - laserPulseDuration).Forever();
 
     #ifdef DEBUG
