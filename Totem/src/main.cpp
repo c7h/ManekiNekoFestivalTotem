@@ -10,25 +10,45 @@
 #define ENABLE_EASE_ELASTIC
 #define DEBUG // enable debug mode with low volume and serial output
 
-#define DFPLAYER_VOLUME 30 // between 0 and 30 (regular mode of operation)
+#define DFPLAYER_VOLUME 25 // between 0 and 30 (regular mode of operation)
 #define PIN_SERVO_ARM 9
 #define PIN_SERVO_SPEED A6
 #define PIN_BUTTON_WAIVE A1
-#define PIN_BUTTON_TALK 10
+#define PIN_BUTTON_TALK 11
 #define PIN_BUTTON_LASER_TRIGGER 12
 #define PIN_DFPLAYER_BUSY 3
 #define PIN_DFPLAYER_RX 6
 #define PIN_DFPLAYER_TX 5
 #define PIN_LASER_ARM 7
 #define PIN_LASER_EYE 13
+#define PIN_LASER_COLLAR_1 4
+#define PIN_LASER_COLLAR_2 8
+#define PIN_LASER_COLLAR_3 10
+#define PIN_ADC_RANDOM 0   // leave this floating for randomness.
 
 // declarations
 ServoEasing Arm;
 SoftwareSerial softSerial(PIN_DFPLAYER_RX, PIN_DFPLAYER_TX);
 DFRobotDFPlayerMini dfPlayer;
-//Blinkenlight laserArm(PIN_LASER_ARM);
 JLed laserArm(PIN_LASER_ARM);
+JLed laserEye(PIN_LASER_EYE);
+JLed laserCollar1(PIN_LASER_COLLAR_1);
+JLed laserCollar2(PIN_LASER_COLLAR_2);
+JLed laserCollar3(PIN_LASER_COLLAR_3);
+
+JLed collar[] = {
+  laserCollar1.Blink(25, 25).Repeat(10),
+  laserCollar2.Blink(25, 25).Repeat(10),
+  laserCollar3.Blink(25, 25).Repeat(10)
+};
+
+auto CollarSequence = JLedSequence(JLedSequence::eMode::SEQUENCE, collar).Forever();
+
+int laserCollarIndex = 0; // keep track of the current laser collar position.
+bool prevLaserArmStatus = false;
+
 ezButton laserArmTrigger(PIN_BUTTON_LASER_TRIGGER);
+ezButton talkTrigger(PIN_BUTTON_TALK);
 
 struct ServoPattern
 {
@@ -36,7 +56,8 @@ struct ServoPattern
   bool next; // pointer of next pattern
 };
 
-uint16_t laserPulseDuration = 100; // duration of laser on time during pulse
+uint16_t laserPulseDuration    = 100; // duration of laser on time during pulse
+uint16_t laserEyePulseDuration = 50; // duration of laser on time during pulse
 uint16_t tSpeed;                   // servo speed read from adc
 uint16_t firstBeat, lastBeat;      // ms timestamps for beat measurement;
 uint16_t tBeat;                    // music speed im ms for laser patterns
@@ -49,7 +70,9 @@ int moveServoToPosition(int position);
 void waiveArm(ServoPattern *pattern);
 void pulseColarLED();
 void pulseLaserArm();
+void moveLaserCollarPosition();
 void playRandomTrack(int folder);
+
 
 void setup()
 {
@@ -58,6 +81,9 @@ void setup()
 #ifdef DEBUG
   Serial.begin(9600);
 #endif
+
+  // random number :)
+  randomSeed(analogRead(PIN_ADC_RANDOM));
 
   // setup servo
   Arm.attach(PIN_SERVO_ARM, 45);
@@ -80,24 +106,24 @@ void setup()
   }
 #ifdef DEBUG
   Serial.println(F("DFPlayer Mini online."));
-  dfPlayer.volume(20);
+  dfPlayer.volume(DFPLAYER_VOLUME);
 #else
-  dfPlayer.volume(#DFPLAYER_VOLUME)
+  dfPlayer.volume(DFPLAYER_VOLUME)
 #endif
   playRandomTrack(9); // folder 9 contains greetings!
 
   // setup lasers 8-)
   laserArmTrigger.setDebounceTime(50);
   laserArmTrigger.setCountMode(COUNT_FALLING);
-  //laserArm.blink();
-  laserArm.Breathe(500);
+  laserArm.Blink(100, 100).Repeat(6);
+  laserEye.Blink(100, 200).Repeat(6);
+
 
   // setup controlls
+  talkTrigger.setDebounceTime(100);
   pinMode(PIN_BUTTON_WAIVE, INPUT); // connect one end to GND and the other to PIN_BUTTON_WAIVE
   pinMode(PIN_SERVO_SPEED, INPUT);
-  pinMode(PIN_BUTTON_TALK, INPUT);
   pinMode(PIN_BUTTON_LASER_TRIGGER, INPUT);
-  pinMode(PIN_LASER_EYE, OUTPUT);
 }
 
 void loop()
@@ -109,9 +135,16 @@ void loop()
 
   // read buttons with ezButton
   laserArmTrigger.loop();
+  talkTrigger.loop();
 
   // update lasers
   laserArm.Update();
+  laserEye.Update();
+  // laserCollar1.Update();
+  // laserCollar2.Update();
+  // laserCollar3.Update();
+  CollarSequence.Update();
+
 
   if (!Arm.isMoving())
   {
@@ -122,10 +155,17 @@ void loop()
     }
   }
 
-  if ((digitalRead(PIN_BUTTON_TALK) == HIGH) & (!digitalRead(PIN_DFPLAYER_BUSY)))
+  if ((talkTrigger.isPressed()) && (digitalRead(PIN_DFPLAYER_BUSY)))
   {
+    #ifdef DEBUG
+    Serial.println("The talk button is pressed");
+    Serial.print("DFPlayer Busy: ");
+    Serial.println(digitalRead(PIN_DFPLAYER_BUSY));
+    #endif
     // not talking yet... start talking
+    
     playRandomTrack(random(0, 5));
+    //dfPlayer.next();
   }
 
   if (laserArmTrigger.isPressed())
@@ -167,6 +207,7 @@ void playRandomTrack(int folder)
   for (int i = 0; i < 3; i++)
   {
     int res = dfPlayer.readFileCountsInFolder(folder);
+    delay(100);
     if (res != -1){
       filesInFolder = res;
     }
@@ -178,22 +219,24 @@ void playRandomTrack(int folder)
   Serial.print(": ");
   Serial.println(filesInFolder);
 
-  Serial.print("Total folder count: ");
-  Serial.println(dfPlayer.readFolderCounts());
-
   if (dfPlayer.readType() == DFPlayerError && dfPlayer.read() == FileMismatch)
   {
     Serial.println("dfPlayer cannot find file!");
   }
 
 #endif
-  randomSeed(analogRead(0));
+  //int seed = analogRead(PIN_ADC_RANDOM);
+  int seed = millis();
+  randomSeed(seed);
   int choosenFile = random(0, filesInFolder-1);
 #ifdef DEBUG
-  Serial.print("Play Track ");
+  Serial.print("Seed: ");
+  Serial.print(seed);
+  Serial.print(". Play Track ");
   Serial.println(choosenFile);
 #endif
   dfPlayer.playFolder(folder, choosenFile);
+  delay(1000);
 }
 
 /*
@@ -231,7 +274,7 @@ void pulseLaserArm()
       Serial.print(tBeat);
       Serial.println("ms");
     #endif
-    digitalWrite(PIN_LASER_EYE, HIGH);
+    laserEye.Blink(laserEyePulseDuration, tBeat/2 - laserEyePulseDuration).Forever(); 
   }
   else if (count >= 5)
   {
@@ -244,6 +287,30 @@ void pulseLaserArm()
     laserArmTrigger.resetCount();
     laserArm.FadeOff(300);
     laserArm.Stop();
-    digitalWrite(PIN_LASER_EYE, LOW);
+    laserEye.Stop();
   }
+}
+
+
+/*
+Move the laser to the next position;
+turn laser on and pervious off;
+*/
+void moveLaserCollarPosition()
+{
+
+  #ifdef DEBUG
+    Serial.print("collar turn off ");
+    Serial.print(laserCollarIndex);
+  #endif
+
+  collar[laserCollarIndex].On();
+  // keep track of current position
+  laserCollarIndex = (laserCollarIndex + 1) % 3;  
+  collar[laserCollarIndex].Off();
+
+  #ifdef DEBUG
+    Serial.print( ". Turn on ");
+    Serial.println(laserCollarIndex);
+  #endif  
 }
