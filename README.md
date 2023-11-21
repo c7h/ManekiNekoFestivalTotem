@@ -3,6 +3,9 @@
 A festival totem is basically your crew's signature flag, banner, or crazy eye-catching object you hoist up high in the crowd at music festivals or big events. 
 It's like your tribe's beacon in the sea of party people, making it easy for your squad to find each other in the midst of the chaotic crowd.
 
+![signal-2023-08-21-204826_011](https://github.com/c7h/ManekiNekoFestivalTotem/assets/2639206/25579db7-bcdd-407b-a088-678a7b8211d9)
+
+
 Imagine a gigantic inflatable pineapple, a neon-colored giraffe, or even a golden cat with laser eyes – that's the totem! It's not just a way to stand out but also a rad way to rep your crew's vibe, spread good vibes, and create an epic meeting spot
 
 ![signal-2023-08-21-152957_004](https://github.com/c7h/ManekiNekoFestivalTotem/assets/2639206/efe3f8ea-bc4e-49bc-9f4f-533003f3f778)
