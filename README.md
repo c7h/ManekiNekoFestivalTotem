@@ -31,10 +31,9 @@ We decided for the simplest possible solution: Throw out the old mechanics and r
 
 Again, designing the servor motor holder and 3D printing it was a real time saver.
 
+https://github.com/c7h/ManekiNekoFestivalTotem/assets/2639206/b4e735d6-965d-4e14-981f-f1db0888c5ce
 
-![Cats doing cat things](https://github.com/c7h/ManekiNekoFestivalTotem/assets/2639206/b4e735d6-965d-4e14-981f-f1db0888c5ce)
 Cats doing cat things....
-
 
 
 ## Finally: Lasers
@@ -45,7 +44,7 @@ The _collar_ lasers on the other side can be controlled in groups of 3. Every th
 The reasons is that we ran out of GPIO pins on our Arduino nano and didn't wanted to invest (yet) in a port expander or a similar solution.
 
 
-![](https://github.com/c7h/ManekiNekoFestivalTotem/assets/2639206/6f3496ec-4ce6-4b5d-b142-76a9ee3bc034)
+https://github.com/c7h/ManekiNekoFestivalTotem/assets/2639206/6f3496ec-4ce6-4b5d-b142-76a9ee3bc034
 
 
 How should they blink? Ideally to the beat of the music. We experimented with different solutions here. Our first idea was to use a microphone, some FFT algo and peak measurement. We built a prototype board for this but quickly ran into problems with oversaturated microphone readings in loud environment. We abandoned this idea and evaluated a much simpler idea.
