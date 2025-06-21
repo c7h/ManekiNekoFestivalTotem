@@ -1,6 +1,5 @@
 #include <Arduino.h>
 #include "ServoEasing.hpp"
-#include "DFRobotDFPlayerMini.h"
 #include <SoftwareSerial.h>
 #include "Blinkenlight.h"
 #include "jled.h"
@@ -10,7 +9,6 @@
 #define ENABLE_EASE_ELASTIC
 #define DEBUG // enable debug mode with low volume and serial output
 
-#define DFPLAYER_VOLUME 25 // between 0 and 30 (regular mode of operation)
 #define PIN_SERVO_ARM 9
 #define PIN_SERVO_SPEED A6
 #define PIN_BUTTON_WAIVE A1
@@ -28,8 +26,6 @@
 
 // declarations
 ServoEasing Arm;
-SoftwareSerial softSerial(PIN_DFPLAYER_RX, PIN_DFPLAYER_TX);
-DFRobotDFPlayerMini dfPlayer;
 JLed laserArm(PIN_LASER_ARM);
 JLed laserEye(PIN_LASER_EYE);
 JLed laserCollar1(PIN_LASER_COLLAR_1);
@@ -71,7 +67,6 @@ void waiveArm(ServoPattern *pattern);
 void pulseColarLED();
 void pulseLaserArm();
 void moveLaserCollarPosition();
-void playRandomTrack(int folder);
 
 
 void setup()
@@ -88,29 +83,6 @@ void setup()
   // setup servo
   Arm.attach(PIN_SERVO_ARM, 45);
   Arm.setEasingType(EASE_ELASTIC_OUT);
-
-  // setup MP3 Player
-  pinMode(PIN_DFPLAYER_BUSY, INPUT);
-  softSerial.begin(9600);
-  if (!dfPlayer.begin(softSerial, /*isACK = */ true, /*doReset = */ true))
-  {
-#ifdef DEBUG
-    Serial.println(F("Unable to begin:"));
-    Serial.println(F("1.Please recheck the connection!"));
-    Serial.println(F("2.Please insert the SD card!"));
-#endif
-    while (true)
-    {
-      delay(0); // Code to compatible with ESP8266 watch dog.
-    }
-  }
-#ifdef DEBUG
-  Serial.println(F("DFPlayer Mini online."));
-  dfPlayer.volume(DFPLAYER_VOLUME);
-#else
-  dfPlayer.volume(DFPLAYER_VOLUME)
-#endif
-  playRandomTrack(9); // folder 9 contains greetings!
 
   // setup lasers 8-)
   laserArmTrigger.setDebounceTime(50);
@@ -155,18 +127,6 @@ void loop()
     }
   }
 
-  if ((talkTrigger.isPressed()) && (digitalRead(PIN_DFPLAYER_BUSY)))
-  {
-    #ifdef DEBUG
-    Serial.println("The talk button is pressed");
-    Serial.print("DFPlayer Busy: ");
-    Serial.println(digitalRead(PIN_DFPLAYER_BUSY));
-    #endif
-    // not talking yet... start talking
-    
-    playRandomTrack(random(0, 5));
-    //dfPlayer.next();
-  }
 
   if (laserArmTrigger.isPressed())
   {
@@ -196,48 +156,6 @@ void waiveArm(ServoPattern* pattern)
   pattern->next = !pattern->next;
 }
 
-/*
-Select folder and choose random track from it.
-Cat has multiple folders with different "moods". The folder selects the mood.
-*/
-void playRandomTrack(int folder)
-{
-  int filesInFolder = 5;
-  // hack to get files count in folder right.
-  for (int i = 0; i < 3; i++)
-  {
-    int res = dfPlayer.readFileCountsInFolder(folder);
-    delay(100);
-    if (res != -1){
-      filesInFolder = res;
-    }
-  }
-  
-#ifdef DEBUG
-  Serial.print("Files in folder ");
-  Serial.print(folder);
-  Serial.print(": ");
-  Serial.println(filesInFolder);
-
-  if (dfPlayer.readType() == DFPlayerError && dfPlayer.read() == FileMismatch)
-  {
-    Serial.println("dfPlayer cannot find file!");
-  }
-
-#endif
-  //int seed = analogRead(PIN_ADC_RANDOM);
-  int seed = millis();
-  randomSeed(seed);
-  int choosenFile = random(0, filesInFolder-1);
-#ifdef DEBUG
-  Serial.print("Seed: ");
-  Serial.print(seed);
-  Serial.print(". Play Track ");
-  Serial.println(choosenFile);
-#endif
-  dfPlayer.playFolder(folder, choosenFile);
-  delay(1000);
-}
 
 /*
 calculate speed setting by calling this function 4 times in a row.
