@@ -10,7 +10,7 @@
 #define DEBUG // enable debug mode with low volume and serial output
 
 #define PIN_SERVO_ARM 9
-#define PIN_SERVO_SPEED A6
+#define PIN_BUTTON_FLASH 16 
 #define PIN_BUTTON_WAIVE A1
 #define PIN_BUTTON_WAIVE_2 11
 #define PIN_BUTTON_LASER_TRIGGER 12
@@ -22,20 +22,33 @@
 #define PIN_LASER_COLLAR_1 4
 #define PIN_LASER_COLLAR_2 8
 #define PIN_LASER_COLLAR_3 10
+#define PIN_LED_CHAIN 2
 #define PIN_ADC_RANDOM 0 // leave this floating for randomness.
 
 // declarations
+uint16_t ledChainPluseDuration = 200;// duration of led chain pulse
+uint16_t laserPulseDuration = 100;   // duration of laser on time during pulse
+uint16_t laserEyePulseDuration = 50; // duration of laser on time during pulse
+uint16_t tSpeed = 60;                // servo speed in deg/s - our servo can handle 60
+uint16_t firstBeat, lastBeat;        // ms timestamps for beat measurement;
+uint16_t tBeat;                      // music speed im ms for laser patterns
+bool blink_led_chain = false;        // should the led chain be turned on with laser eyes?
+
 ServoEasing Arm;
 JLed laserArm(PIN_LASER_ARM);
 JLed laserEye(PIN_LASER_EYE);
 JLed laserCollar1(PIN_LASER_COLLAR_1);
 JLed laserCollar2(PIN_LASER_COLLAR_2);
 JLed laserCollar3(PIN_LASER_COLLAR_3);
+JLed ledChain(PIN_LED_CHAIN);
 
 JLed collar[] = {
     laserCollar1.Blink(25, 25).Repeat(10),
     laserCollar2.Blink(25, 25).Repeat(10),
-    laserCollar3.Blink(25, 25).Repeat(10)};
+    laserCollar3.Blink(25, 25).Repeat(10)
+};
+
+
 
 auto CollarSequence = JLedSequence(JLedSequence::eMode::SEQUENCE, collar).Forever();
 
@@ -43,6 +56,7 @@ int laserCollarIndex = 0; // keep track of the current laser collar position.
 bool prevLaserArmStatus = false;
 
 ezButton laserArmTrigger(PIN_BUTTON_LASER_TRIGGER);
+ezButton ledChainTrigger(PIN_BUTTON_FLASH);
 
 struct ServoPattern
 {
@@ -50,11 +64,7 @@ struct ServoPattern
   bool next; // pointer of next pattern
 };
 
-uint16_t laserPulseDuration = 100;   // duration of laser on time during pulse
-uint16_t laserEyePulseDuration = 50; // duration of laser on time during pulse
-uint16_t tSpeed = 60;                // servo speed in deg/s - our servo can handle 60
-uint16_t firstBeat, lastBeat;        // ms timestamps for beat measurement;
-uint16_t tBeat;                      // music speed im ms for laser patterns
+
 
 ServoPattern FullWaive = {{30, 110}, 0};
 ServoPattern TinyWaive = {{80, 100}, 0};
@@ -62,9 +72,9 @@ ServoPattern TinyWaive = {{80, 100}, 0};
 // put function declarations here:
 int moveServoToPosition(int position);
 void waiveArm(ServoPattern *pattern);
-void pulseColarLED();
 void pulseLaserArm();
 void moveLaserCollarPosition();
+void toggleLedChain();
 
 void setup()
 {
@@ -87,11 +97,14 @@ void setup()
   laserArmTrigger.setCountMode(COUNT_FALLING);
   laserArm.Blink(100, 100).Repeat(6);
   laserEye.Blink(100, 200).Repeat(6);
+  ledChain.Blink(100, 100).Repeat(6);
+
+  // setup Flash
+  ledChainTrigger.setDebounceTime(50);
 
   // setup controlls
   pinMode(PIN_BUTTON_WAIVE_2, INPUT);
   pinMode(PIN_BUTTON_WAIVE, INPUT); // connect one end to GND and the other to PIN_BUTTON_WAIVE
-  pinMode(PIN_SERVO_SPEED, INPUT);
   pinMode(PIN_BUTTON_LASER_TRIGGER, INPUT);
 }
 
@@ -100,13 +113,12 @@ void loop()
 
   // read buttons with ezButton
   laserArmTrigger.loop();
+  ledChainTrigger.loop();
 
   // update lasers
   laserArm.Update();
   laserEye.Update();
-  // laserCollar1.Update();
-  // laserCollar2.Update();
-  // laserCollar3.Update();
+  ledChain.Update();
   CollarSequence.Update();
 
   if (!Arm.isMoving())
@@ -126,6 +138,11 @@ void loop()
   {
     // laser button was pressed
     pulseLaserArm();
+  }
+
+  if (ledChainTrigger.isPressed())
+  {
+    toggleLedChain();
   }
 }
 
@@ -186,6 +203,11 @@ void pulseLaserArm()
     Serial.println("ms");
 #endif
     laserEye.Blink(laserEyePulseDuration, tBeat / 2 - laserEyePulseDuration).Forever();
+
+    if (blink_led_chain == true) {
+      ledChain.Breathe(tBeat).Forever();
+    }
+
   }
   else if (count >= 5)
   {
@@ -199,6 +221,7 @@ void pulseLaserArm()
     laserArm.FadeOff(300);
     laserArm.Stop();
     laserEye.Stop();
+    ledChain.Stop();
   }
 }
 
@@ -223,4 +246,15 @@ void moveLaserCollarPosition()
   Serial.print(". Turn on ");
   Serial.println(laserCollarIndex);
 #endif
+}
+
+
+/*
+Flash the laser Collar briefly and return to normal operation
+*/
+void toggleLedChain()
+{
+  Serial.print("Toggle LED chain setting: ");
+  blink_led_chain = ! blink_led_chain;
+  Serial.println(blink_led_chain);
 }
