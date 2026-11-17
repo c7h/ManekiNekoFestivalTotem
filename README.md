@@ -53,3 +53,19 @@ https://github.com/c7h/ManekiNekoFestivalTotem/assets/2639206/6f3496ec-4ce6-4b5d
 How should they blink? Ideally to the beat of the music. We experimented with different solutions here. Our first idea was to use a microphone, some FFT algo and peak measurement. We built a prototype board for this but quickly ran into problems with oversaturated microphone readings in loud environment. We abandoned this idea and evaluated a much simpler idea.
 The simple approach is to "beat match" or _sync_ the beat with a button. Tap a button with a beat 4 times in a row and the lasers will sync with the beat (similar to how those fancy dj controllers most likely work - i have no idea tbh but this is how I imagine them to work).
 The first three taps are measuring the time between two beats. The 4th is calculating the average over the measurements and starts the blinking sequence of the lasers. This worked really well and is simple to use.
+
+## Control over UART
+
+The cat can also be driven from a PC over the Arduino's USB serial port at 115200 baud. This is the base for controlling the lasers and the waving arm from LedFx later.
+
+```
+python3 -m pip install -r host/requirements.txt
+./host/totemctl.py --port /dev/ttyUSB0 PING
+./host/totemctl.py --port /dev/ttyUSB0 LASER EYE PULSE 50
+./host/totemctl.py --port /dev/ttyUSB0 WAVE TINY
+./host/totemctl.py --port /dev/ttyUSB0 LED LEVEL 128
+./host/totemctl.py --port /dev/ttyUSB0 OFF
+```
+
+The buttons keep working while the UART is connected. If the host goes away, the cat falls back to blinking the lasers instead of going dark. The full command reference is in [docs/uart-protocol.md](docs/uart-protocol.md).
+
